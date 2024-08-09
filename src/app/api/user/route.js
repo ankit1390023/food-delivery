@@ -1,0 +1,50 @@
+import mongoose from "mongoose";
+import { connectionStr } from "../../../../lib/db";
+import { NextResponse } from "next/server";
+import User from "../../../../lib/model/userModel";
+
+export async function POST(request) {
+    try {
+        await mongoose.connect(connectionStr);
+
+        const payload = await request.json();
+        let data;
+        let success = false;
+
+        if (payload.login) {
+            // Login user
+            data = await User.findOne({ email: payload.email, password: payload.password });
+
+            if (data) {
+                success = true;
+            }
+        } else {
+            // Signup new user
+            const { name, password, email, city, address, contact } = payload;
+
+            // Check if the user already exists
+            const existingUser = await User.findOne({ email });
+
+            if (existingUser) {
+                return NextResponse.json({ message: "User already exists", success: false, statusCode: 400 });
+            }
+
+            // Include all fields in the new user
+
+            const newUser = new User({ name, password, email, city, address, contact });
+            data = await newUser.save();
+
+            if (data) {
+                success = true;
+            }
+        }
+
+        // Close the connection after database operations
+        // await mongoose.disconnect();
+
+        return NextResponse.json({ result: data, success });
+    } catch (error) {
+        console.error("Error processing request:", error);
+        return NextResponse.json({ message: "Request failed", success: false, statusCode: 500 });
+    }
+}
